@@ -1,0 +1,22 @@
+<mat-grid-list cols="2" gutterSize="2rem" rowHeight="100%">
+  <mat-grid-tile>
+    <mat-card class="tree-card">
+      <mat-card-header>
+        <mat-card-title>Tree component</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-tree [(selected)]="selected" [nodes]="nodes"></app-tree>
+      </mat-card-content>
+    </mat-card>
+  </mat-grid-tile>
+  <mat-grid-tile>
+    <mat-card class="list-card">
+      <mat-card-header>
+        <mat-card-title>List component</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-list [items]="selected"></app-list>
+      </mat-card-content>
+    </mat-card>
+  </mat-grid-tile>
+</mat-grid-list>
