@@ -77,6 +77,8 @@ export class TreeComponent implements OnChanges {
     this.checklistSelection.isSelected(node)
       ? this.checklistSelection.select(...descendants)
       : this.checklistSelection.deselect(...descendants)
+    descendants.every(child => this.checklistSelection.isSelected(child))
+    this.checkAllParentsSelection(node)
     this.selectedChange.emit(this.selected)
   }
 
