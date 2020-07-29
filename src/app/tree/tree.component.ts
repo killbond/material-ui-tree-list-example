@@ -1,15 +1,18 @@
-import {Component, EventEmitter, Input, OnChanges, Output, SimpleChanges} from '@angular/core';
+import {ChangeDetectionStrategy, Component, Input, OnInit} from '@angular/core';
 import {Node} from '../interfaces/node';
 import {SelectionModel} from '@angular/cdk/collections';
 import {NestedTreeControl} from '@angular/cdk/tree';
 import {MatTreeNestedDataSource} from '@angular/material/tree';
+import {SelectedService} from '../services/selected.service';
+import {first} from 'rxjs/operators';
 
 @Component({
   selector: 'app-tree',
   templateUrl: './tree.component.html',
-  styleUrls: ['./tree.component.scss']
+  styleUrls: ['./tree.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TreeComponent implements OnChanges {
+export class TreeComponent implements OnInit {
 
   treeControl: NestedTreeControl<Node>
 
@@ -17,41 +20,29 @@ export class TreeComponent implements OnChanges {
 
   dataSource: MatTreeNestedDataSource<Node> = new MatTreeNestedDataSource<Node>()
 
-  @Input()
-  nodes: Node[]
-
-  @Output()
-  selectedChange = new EventEmitter<Node[]>()
-
-  @Input()
-  get selected(): Node[] {
-    return this.checklistSelection.selected
-  }
-
-  set selected(_: Node[]) {}
-
-  constructor() {
+  constructor(private selectedService: SelectedService) {
     this.treeControl = new NestedTreeControl<Node>((node: Node) => node.children)
     this.checklistSelection = new SelectionModel<Node>(true, [], false)
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if ('nodes' in changes) {
-      this.dataSource.data = changes.nodes.currentValue
-      this.treeControl.dataNodes = changes.nodes.currentValue
-    }
+  @Input()
+  set nodes(value: Node[]) {
+    this.dataSource.data = value
+    this.treeControl.dataNodes = value
+  }
 
-    if ('selected' in changes) {
-      const ids = changes.selected.currentValue.map((item: Node) => item.id)
-      for (let node of this.nodes) {
-        this.treeControl.getDescendants(node)
-          .concat([node])
-          .filter((item: Node) => ids.includes(item.id))
-          .forEach((item: Node) => {
-            this.checklistSelection.select(item)
-          })
-      }
-    }
+  ngOnInit() {
+    this.selectedService.getSelected()
+      .pipe(first())
+      .subscribe((selected: Node[]) => {
+        const ids = selected.map((item: Node) => item.id)
+        for (let node of this.treeControl.dataNodes) {
+          let selected = this.treeControl.getDescendants(node)
+            .concat([node])
+            .filter((item: Node) => ids.includes(item.id))
+          this.checklistSelection.select(...selected)
+        }
+      })
   }
 
   hasChild(_: number, node: Node): boolean {
@@ -79,13 +70,13 @@ export class TreeComponent implements OnChanges {
       : this.checklistSelection.deselect(...descendants)
     descendants.every(child => this.checklistSelection.isSelected(child))
     this.checkAllParentsSelection(node)
-    this.selectedChange.emit(this.selected)
+    this.selectedService.changeSelected(this.checklistSelection.selected)
   }
 
   leafItemSelectionToggle(node: Node): void {
     this.checklistSelection.toggle(node)
     this.checkAllParentsSelection(node)
-    this.selectedChange.emit(this.selected)
+    this.selectedService.changeSelected(this.checklistSelection.selected)
   }
 
   checkAllParentsSelection(node: Node): void {
@@ -102,7 +93,7 @@ export class TreeComponent implements OnChanges {
     !descAllSelected ? this.checklistSelection.deselect(node) : this.checklistSelection.select(node)
   }
 
-  getParentNode(node: Node, branches: Node[] = this.nodes): Node | null {
+  getParentNode(node: Node, branches: Node[] = this.treeControl.dataNodes): Node | null {
     let parent = null, branch = null,
       withChildren = branches.filter((item: Node) => !!item.children && item.children.length > 0)
     while (branch = withChildren.shift()) {
