@@ -1,10 +1,9 @@
-import {ChangeDetectionStrategy, Component, Input, OnInit} from '@angular/core';
+import {ChangeDetectionStrategy, Component, EventEmitter, Input, Output} from '@angular/core';
 import {Node} from '../interfaces/node';
 import {SelectionModel} from '@angular/cdk/collections';
 import {NestedTreeControl} from '@angular/cdk/tree';
 import {MatTreeNestedDataSource} from '@angular/material/tree';
-import {SelectedService} from '../services/selected.service';
-import {first} from 'rxjs/operators';
+import {BehaviorSubject, combineLatest} from 'rxjs';
 
 @Component({
   selector: 'app-tree',
@@ -12,31 +11,43 @@ import {first} from 'rxjs/operators';
   styleUrls: ['./tree.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TreeComponent implements OnInit {
+export class TreeComponent {
 
-  treeControl: NestedTreeControl<Node>
+  treeControl: NestedTreeControl<Node> = new NestedTreeControl<Node>((node: Node) => node.children)
 
-  checklistSelection: SelectionModel<Node>
+  checklistSelection: SelectionModel<Node> = new SelectionModel<Node>(true, [], false)
 
   dataSource: MatTreeNestedDataSource<Node> = new MatTreeNestedDataSource<Node>()
 
-  constructor(private selectedService: SelectedService) {
-    this.treeControl = new NestedTreeControl<Node>((node: Node) => node.children)
-    this.checklistSelection = new SelectionModel<Node>(true, [], false)
-  }
+  private nodes$: BehaviorSubject<Node[]> = new BehaviorSubject<Node[]>([])
+
+  private selected$: BehaviorSubject<Node[]> = new BehaviorSubject<Node[]>([])
 
   @Input()
   set nodes(value: Node[]) {
-    this.dataSource.data = value
-    this.treeControl.dataNodes = value
+    this.nodes$.next(value)
   }
 
-  ngOnInit() {
-    this.selectedService.getSelected()
-      .pipe(first())
-      .subscribe((selected: Node[]) => {
+  @Output()
+  selectedChange = new EventEmitter<Node[]>()
+
+  @Input()
+  get selected(): Node[] {
+    return this.checklistSelection.selected
+  }
+
+  set selected(value: Node[]) {
+    this.selected$.next(value)
+  }
+
+  constructor() {
+    combineLatest([this.nodes$, this.selected$])
+      .subscribe(([nodes, selected]) => {
+        this.dataSource.data = nodes
+        this.treeControl.dataNodes = nodes
+
         const ids = selected.map((item: Node) => item.id)
-        for (let node of this.treeControl.dataNodes) {
+        for (let node of nodes) {
           let selected = this.treeControl.getDescendants(node)
             .concat([node])
             .filter((item: Node) => ids.includes(item.id))
@@ -70,13 +81,13 @@ export class TreeComponent implements OnInit {
       : this.checklistSelection.deselect(...descendants)
     descendants.every(child => this.checklistSelection.isSelected(child))
     this.checkAllParentsSelection(node)
-    this.selectedService.changeSelected(this.checklistSelection.selected)
+    this.selectedChange.emit(this.selected)
   }
 
   leafItemSelectionToggle(node: Node): void {
     this.checklistSelection.toggle(node)
     this.checkAllParentsSelection(node)
-    this.selectedService.changeSelected(this.checklistSelection.selected)
+    this.selectedChange.emit(this.selected)
   }
 
   checkAllParentsSelection(node: Node): void {

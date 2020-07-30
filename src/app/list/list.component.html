@@ -1,3 +1,3 @@
 <mat-list role="list">
-  <mat-list-item *ngFor="let item of items" role="listitem">{{ item.name }}</mat-list-item>
+  <mat-list-item *ngFor="let item of itemsValue; trackBy: trackById" role="listitem">{{ item.name }}</mat-list-item>
 </mat-list>

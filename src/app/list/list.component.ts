@@ -1,6 +1,5 @@
-import {ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit} from '@angular/core';
+import {ChangeDetectionStrategy, Component, Input} from '@angular/core';
 import {Node} from '../interfaces/node';
-import {SelectedService} from "../services/selected.service";
 
 @Component({
   selector: 'app-list',
@@ -8,21 +7,17 @@ import {SelectedService} from "../services/selected.service";
   styleUrls: ['./list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ListComponent implements OnInit {
+export class ListComponent {
 
-  items: Node[]
+  itemsValue: Node[]
 
-  constructor(
-    private selectedService: SelectedService,
-    private changeDetector: ChangeDetectorRef,
-  ) {}
+  @Input()
+  set items(value: Node[]) {
+    this.itemsValue = value;
+  }
 
-  ngOnInit() {
-    this.selectedService.getSelected()
-      .subscribe((items: Node[]) => {
-        this.items = items
-        this.changeDetector.detectChanges()
-      })
+  trackById(index: number, item: Node): number {
+    return item.id
   }
 
 }
